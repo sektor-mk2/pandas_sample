@@ -1,8 +1,10 @@
 import ast
 import numpy as np
 import pandas as pd
-from pathlib import Path
+import typing
 from abc import ABC, abstractmethod
+from enum import Enum
+from pathlib import Path
 
 """
 Design Notes:
@@ -23,6 +25,11 @@ use sphinx markup for docstrings, it is considered the de facto standard
 """
 
 
+class Tables(Enum):
+    MOVIES = 1
+    RATINGS = 2
+
+
 class AbcMovieSolver(ABC):
     """
     Interface for the whole hierarchy and container for docs
@@ -38,7 +45,7 @@ class AbcMovieSolver(ABC):
         # always assign dtypes
         # if not, pandas will try to guess and that is memory intensive
         mov_types = {
-            "adult": object,
+            "adult": bool,
             "belongs_to_collection": object,
             "budget": object,
             "genres": object,
@@ -48,20 +55,20 @@ class AbcMovieSolver(ABC):
             "original_language": object,
             "original_title": object,
             "overview": object,
-            "popularity": object,
+            "popularity": np.float64,
             "poster_path": object,
             "production_companies": object,
             "production_countries": object,
             "release_date": object,
-            "revenue": np.float64,
+            "revenue": np.int64,
             "runtime": np.float64,
             "spoken_languages": object,
             "status": object,
             "tagline": object,
             "title": object,
-            "video": object,
+            "video": bool,
             "vote_average": np.float64,
-            "vote_count": np.float64,
+            "vote_count": np.int64,
         }
 
         self.mov_df = pd.read_csv(file_path, index_col="id", dtype=mov_types)
@@ -160,8 +167,11 @@ class NaiveMovieSolver(AbcMovieSolver):
 
 class ExperimentalMovieSolver(NaiveMovieSolver):
 
-    def __init__(self, file_path: Path):
-        super().__init__(file_path)
+    def __init__(self, file_paths: typing.Dict[Tables, Path]):
+        """
+        :param Dict[Tables, Path] file_paths: dict with paths to datasets
+        """
+        super().__init__(file_paths[Tables.MOVIES])
 
         # Assumption
         # We assume we are interested only in existing movies
@@ -170,3 +180,29 @@ class ExperimentalMovieSolver(NaiveMovieSolver):
             (self.mov_df["status"] == "Released") & (self.mov_df["release_date"].notnull())
         ]
 
+        rat_types = {
+            "userId": np.int64,
+            "movieId": np.int64,
+            "rating": np.float64,
+            "timestamp": np.int64,
+        }
+
+        self.rat_df = pd.read_csv(file_paths[Tables.RATINGS], dtype=rat_types)
+
+    def average_rating_of_all(self):
+        return self.rat_df["rating"].mean()
+
+    def best_rated(self, count: int):
+        df = self.mov_df
+        df["heuristic_rating"] = ((df["vote_average"] - 5) * df["vote_count"])
+        return df.sort_values(
+            by=["heuristic_rating"],
+            ascending=False
+        ).head(count)['title'].values.tolist()
+
+    def export_to_json(self, file_paths: typing.Dict[Tables, Path]):
+        """
+        :param Dict[Tables, Path] file_paths: absolute paths to destinations
+        """
+        self.mov_df.to_json(file_paths[Tables.MOVIES], orient="split")
+        self.rat_df.to_json(file_paths[Tables.RATINGS], orient="split")
