@@ -6,5 +6,6 @@ setup(
     packages=find_packages(include=['pandas_sample']),
     install_requires=[
             'pandas==2.0.1',
+            'pytest==7.3.1'
         ]
 )
