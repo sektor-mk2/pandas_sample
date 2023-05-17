@@ -20,3 +20,8 @@ Pandas handles malformed data amazingly, but it still has unintended side effect
 I did not add the fixed dataset to this project, because setup of LFS is outside the scope of this project
 
 The goal of this project is experimenting with pandas. Sanitizing arbitrary malformed data is much larger topic and also outside the scope of this project
+# How to run tests
+From tests folder:
+```
+pytest tests.py
+```
